@@ -1,0 +1,280 @@
+:root {
+    --topbar-height: 50px;
+    --sidebar-width: 252px;
+    --sidebar-collapsed-width: 60px;
+}
+
+body {
+    font-family: "Inter", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: normal;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+/*-----------------------------
+ ** Thin Scrollbar 
+ /* For WebKit browsers (Chrome, Safari, newer versions of Edge) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #888;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f0f0f0;
+}
+
+/* For Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #888 #f0f0f0;
+}
+
+/* Optional: styling scrollbars in Internet Explorer */
+.scrollable-content {
+    -ms-overflow-style: -ms-autohiding-scrollbar;
+}
+
+
+/*================
+* Admin Page Css
+*=================/
+
+*/
+.ease-admin-page {
+    width: 100vw;
+}
+
+.topbar {
+    height: var(--topbar-height);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    z-index: 100;
+}
+
+@keyframes pagetop-loading-bar-animation {
+    0% {
+        left: 0;
+        width: calc(100vw/5);
+    }
+
+    100% {
+        left: 100%;
+        width: 0;
+    }
+}
+
+.pagetop-loading-bar {
+    position: absolute;
+    border-radius: 10px;
+    top: 2px;
+    left: 0;
+    height: 2px;
+    background-color: var(--bs-primary);
+    z-index: 5000;
+    animation: pagetop-loading-bar-animation linear .7s infinite;
+}
+
+.sidebar-and-content {
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+}
+
+.sidebar {
+    width: var(--sidebar-width);
+    flex: 0 0 var(--sidebar-width);
+    height: calc(100vh - var(--topbar-height));
+    position: fixed;
+    top: var(--topbar-height);
+    left: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    transition: width .4s;
+    z-index: 99;
+}
+
+.sidebar-nav-item {
+    margin-top: 10px;
+}
+
+.sidebar-nav-link {
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    color: var(--bs-secondary-color);
+    font-size: 15px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.sidebar-nav-link.active {
+    color: var(--bs-primary)
+}
+
+
+.sidebar-nav-link-icon {
+    margin-right: 10px;
+}
+
+.sidebar-nav-item-subitems .sidebar-nav-item {
+    margin-left: 28px;
+}
+
+
+.sidebar-nav-item-subitems {
+
+    height: auto;
+    transform: scale(1);
+    transition: transform 0.3s ease;
+}
+
+.sidebar-nav-item.collapsed .sidebar-nav-item-subitems {
+    height: 0;
+    overflow: hidden;
+    transform: scale(0);
+    transition: transform 0.3s ease;
+}
+
+.sidebar-nav-link-toggle-icon {
+    display: block;
+    transform: rotate(180deg);
+    transition: all .3s;
+}
+
+.sidebar-nav-item.collapsed .sidebar-nav-link-toggle-icon {
+    transform: rotate(0deg);
+}
+
+
+/* Sidebar Collapsed state css */
+.sidebar-and-content.sidebar-collapsed .sidebar {
+    width: var(--sidebar-collapsed-width);
+}
+
+
+.sidebar-and-content.sidebar-collapsed .sidebar-nav-item {
+    justify-content: start;
+}
+
+.sidebar-and-content.sidebar-collapsed .sidebar-nav-link {
+    justify-content: center;
+}
+
+.sidebar-and-content.sidebar-collapsed .sidebar-nav-link-icon {
+    margin-right: 0px;
+    border-radius: 3px;
+}
+
+.sidebar-and-content.sidebar-collapsed .sidebar-nav-link-text {
+    display: none;
+}
+
+.sidebar-and-content.sidebar-collapsed .sidebar-nav-item-subitems .sidebar-nav-item {
+    margin-left: 0px;
+}
+
+.sidebar-and-content.sidebar-collapsed .sidebar-nav-link-toggle-icon {
+    display: none;
+}
+
+/* ======================================================
+ when sidebar is collapsed but user hover over it  
+ */
+
+.sidebar-and-content.sidebar-collapsed .sidebar:hover {
+    width: var(--sidebar-width);
+    left: 0%;
+}
+
+.sidebar-and-content.sidebar-collapsed .sidebar:hover .sidebar-nav-link {
+    justify-content: start;
+    align-items: center;
+}
+
+
+.sidebar-and-content.sidebar-collapsed .sidebar:hover .sidebar-nav-link-icon {
+    margin-right: 10px;
+    border: none;
+}
+
+.sidebar-and-content.sidebar-collapsed .sidebar:hover .sidebar-nav-link-text {
+    display: block;
+}
+
+.sidebar-and-content.sidebar-collapsed .sidebar:hover .sidebar-nav-item-subitems .sidebar-nav-item {
+    margin-left: 28px;
+}
+
+.sidebar-and-content.sidebar-collapsed .sidebar:hover .sidebar-nav-link-toggle-icon {
+    display: block;
+}
+
+
+/* ================================ */
+
+.main-content {
+    width: calc(100vw - var(--sidebar-width));
+    height: calc(100vh - var(--topbar-height));
+    position: fixed;
+    left: var(--sidebar-width);
+    top: var(--topbar-height);
+    overflow-y: auto;
+    overflow-x: hidden;
+    transition: width .4s;
+}
+
+.sidebar-and-content.sidebar-collapsed .main-content {
+    width: calc(100vw - var(--sidebar-collapsed-width));
+    left: var(--sidebar-collapsed-width);
+}
+
+@media (max-width: 576px) {
+
+    .sidebar {
+        width: var(--sidebar-width);
+        left: -100%;
+    }
+
+    .sidebar-and-content.sidebar-collapsed .sidebar {
+        width: var(--sidebar-width);
+        left: 0%;
+    }
+
+    .sidebar-and-content.sidebar-collapsed .sidebar-nav-link-icon {
+        margin-right: 10px;
+        border: none;
+    }
+
+    .sidebar-and-content.sidebar-collapsed .sidebar-nav-link-text {
+        display: block;
+    }
+
+
+    .sidebar-and-content.sidebar-collapsed .sidebar-nav-item-subitems .sidebar-nav-item {
+        margin-left: 28px;
+    }
+
+    .sidebar-and-content.sidebar-collapsed .sidebar-nav-link {
+        justify-content: start;
+    }
+
+    .sidebar-and-content.sidebar-collapsed .sidebar-nav-link-toggle-icon {
+        display: block;
+    }
+
+    .main-content,
+    .sidebar-and-content.sidebar-collapsed .main-content {
+        width: 100vw;
+        left: 0px;
+    }
+}
