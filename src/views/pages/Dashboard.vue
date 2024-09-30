@@ -1,143 +1,134 @@
 <script setup>
-import { onBeforeMount, onMounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useUiStore } from '../../stores/ui';
 
 const uiStore = useUiStore();
 
+const repos = ref([]);
 const totalRepos = ref(0);
-const totalCommitsLast7Day = ref(0);
-const totalPrivateRepos = ref(0); // Track private repositories separately
-const totalBranches = ref(0);
-const totalStars = ref(0);
-const totalFollowers = ref(0);
-const totalFollowing = ref(0);
+const gitUserDetails = ref({});
 
-const USERNAME = uiStore.githubUsername;
-const TOKEN = uiStore.githubToken;
-const GITHUB_API = 'https://api.github.com';
+const since = ref('');
+const until = ref('');
+const selectedRepo = ref('');
+const commits = ref([]);
 
-const headers = {
-    Authorization: `token ${TOKEN}`
-};
 
-// Function to fetch all repositories (with pagination)
-async function fetchAllRepos() {
+
+async function getGitUserDetails(token) {
+
+    return new Promise(async (resolve, reject) => {
+        try {
+            const response = await fetch('https://api.github.com/user', {
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                },
+            });
+            if (!response.ok) {
+                throw new Error(`Error: ${response.status} ${response.statusText}`);
+            }
+            resolve(await response.json())
+        } catch (error) {
+            reject(error);
+        }
+    });
+
+
+}
+
+async function fetchAllRepos(token) {
+    const url = `https://api.github.com/user/repos?per_page=100`;
+    let allRepos = [];
     let page = 1;
-    let repos = [];
-    let hasMoreRepos = true;
 
-    while (hasMoreRepos) {
-        const response = await fetch(`${GITHUB_API}/user/repos?per_page=100&page=${page}`, { headers });
-        const data = await response.json();
-        repos = repos.concat(data);
-        if (data.length < 100) {
-            hasMoreRepos = false;
-        } else {
+    try {
+        while (true) {
+            const response = await fetch(`${url}&page=${page}`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error: ${response.status} ${response.statusText}`);
+            }
+
+            const repos = await response.json();
+            if (repos.length === 0) {
+                break;
+            }
+
+            allRepos = [...allRepos, ...repos];
             page++;
         }
-    }
 
-    return repos;
+        return allRepos;
+    } catch (error) {
+        console.error('Error fetching repositories:', error);
+        throw error;
+    }
 }
 
-// fetch commits for a repository in the last 7 days (with pagination)
-async function fetchCommitsForRepo(repoFullName) {
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    let page = 1;
-    let commitCount = 0;
-    let hasMoreCommits = true;
+async function fetchRepoCommits(repo, since, until, token) {
 
-    while (hasMoreCommits) {
-        const response = await fetch(`${GITHUB_API}/repos/${repoFullName}/commits?author=${USERNAME}&since=${sevenDaysAgo}&per_page=100&page=${page}`, { headers });
+
+    try {
+
+        if(repos == '' || since == '' || until == '') {
+            return '';
+        }
+
+        let owner = repos.value.find(item => item.name === repo).owner.login;
+
+        const sinceISO = new Date(since).toISOString();
+        const untilISO = new Date(until).toISOString();
+
+        const url = `https://api.github.com/repos/${owner}/${repo}/commits?since=${sinceISO}&until=${untilISO}`;
+
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/vnd.github.v3+json',
+                'Authorization': `token ${token}`,
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error: ${response.status} ${response.statusText}`);
+        }
+
         const data = await response.json();
-        commitCount += data.length;
-        if (data.length < 100) {
-            hasMoreCommits = false;
-        } else {
-            page++;
-        }
-    }
-
-    return commitCount;
-}
-
-// get the total commit count in the last 7 days
-async function getTotalCommitsLast7Days() {
-    try {
-        const repos = await fetchAllRepos();
-        let totalCommits = 0;
-
-        for (const repo of repos) {
-            console.log(`Counting commits for ${repo.full_name}...`);
-            const commitCount = await fetchCommitsForRepo(repo.full_name);
-            totalCommits += commitCount;
-        }
-        totalCommitsLast7Day.value = totalCommits;
-        console.log(`Total commits by ${USERNAME} in the last 7 days: ${totalCommits}`);
-
+        commits.value = data;
+        return data;
     } catch (error) {
-        console.error('Error fetching commit data:', error);
+        console.error('Error fetching commits for repo:', error);
+        throw error;
     }
 }
 
-async function generateGitHubReport() {
-    try {
 
-        const userResponse = await fetch('https://api.github.com/user', {
-            headers: {
-                'Authorization': `token ${uiStore.githubToken}` // Fixed token format
-            }
-        });
-
-        if (!userResponse.ok) {
-            throw new Error('Failed to fetch user data');
-        }
-
-        const userData = await userResponse.json();
-        totalFollowers.value = userData.followers;
-        totalFollowing.value = userData.following;
-        totalRepos.value = userData.public_repos;
-        totalPrivateRepos.value = userData.total_private_repos;
-
-
-        const reposResponse = await fetch('https://api.github.com/user/repos', {
-            headers: {
-                'Authorization': `token ${uiStore.githubToken}`
-            }
-        });
-
-        if (!reposResponse.ok) {
-            throw new Error('Failed to fetch repositories');
-        }
-
-        const repos = await reposResponse.json();
-        if (Array.isArray(repos)) {
-            for (const repo of repos) {
-                totalStars.value += repo.stargazers_count;
-            }
-            for (const repo of repos) {
-                const branchesResponse = await fetch(`https://api.github.com/repos/${uiStore.githubUsername}/${repo.name}/branches`, {
-                    headers: {
-                        'Authorization': `token ${uiStore.githubToken}`
-                    }
-                });
-
-                if (branchesResponse.ok) {
-                    const branches = await branchesResponse.json();
-                    if (Array.isArray(branches)) {
-                        totalBranches.value += branches.length;
-                    }
-                }
-            }
-        }
-    } catch (error) {
-        console.error('Error generating GitHub report:', error);
-    }
-}
 
 onMounted(() => {
-    generateGitHubReport();
-    getTotalCommitsLast7Days();
+
+    getGitUserDetails(uiStore.githubToken)
+        .then((response) => {
+            gitUserDetails.value = response;
+        })
+
+    fetchAllRepos(uiStore.githubToken)
+        .then((response) => {
+            repos.value = response;
+            totalRepos.value = response.length;
+            const since = new Date(new Date().setDate(new Date().getDate() - 7)).toISOString();
+            const until = new Date().toISOString();
+            selectedRepo.value = response[0].name;
+            fetchRepoCommits(response[0].name, since, until, uiStore.githubToken)
+        });
+
 });
 </script>
 
@@ -149,8 +140,8 @@ onMounted(() => {
                     <div class="card-body">
                         <div class="d-flex align-items-center">
                             <div>
-                                <p class="mb-0 text-body">Total Public Repos</p>
-                                <h4 class="my-1 text-info">{{ totalRepos }}</h4>
+                                <p class="mb-0 text-body">Public Repos</p>
+                                <h4 class="my-1 text-info">{{ gitUserDetails.public_repos }}</h4>
                                 <!-- <p class="mb-0 font-13">dsf</p> -->
                             </div>
                         </div>
@@ -162,11 +153,11 @@ onMounted(() => {
                     <div class="card-body">
                         <div class="d-flex align-items-center">
                             <div>
-                                <p class="mb-0 text-body">Total Commit in Week</p>
-                                <h4 class="my-1 text-danger">{{ totalCommitsLast7Day }}</h4>
+                                <p class="mb-0 text-body">Private Repos</p>
+                                <h4 class="my-1 text-danger">{{ (totalRepos - parseFloat(gitUserDetails.public_repos))
+                                    }}</h4>
                                 <!-- <p class="mb-0 font-13">+5.4% from last week</p> -->
                             </div>
-
                         </div>
                     </div>
                 </div>
@@ -177,7 +168,7 @@ onMounted(() => {
                         <div class="d-flex align-items-center">
                             <div>
                                 <p class="mb-0 text-body">Total Followers</p>
-                                <h4 class="my-1 text-success">{{ totalFollowers }}</h4>
+                                <h4 class="my-1 text-success">{{ gitUserDetails.followers }}</h4>
                                 <!-- <p class="mb-0 font-13">-4.5% from last week</p> -->
                             </div>
 
@@ -191,12 +182,69 @@ onMounted(() => {
                         <div class="d-flex align-items-center">
                             <div>
                                 <p class="mb-0 text-body">Total Following</p>
-                                <h4 class="my-1 text-warning">{{ totalFollowing }}</h4>
+                                <h4 class="my-1 text-warning">{{ gitUserDetails.following }}</h4>
                                 <!-- <p class="mb-0 font-13">+8.4% from last week</p> -->
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+        <div class="row">
+         
+            <div class="col-md-12 mb-1">
+                <div class="d-flex">
+                    <h4 class="h4 text-body">Commit List</h4>
+                    <div class="actions ms-auto d-flex align-items-center">
+                        <span class="mx-2">Repo</span>
+                        <select class="form-control form-control-sm me-2" style="min-width: 200px;"
+                            v-model="selectedRepo"
+                            @change="fetchRepoCommits(selectedRepo, since, until, uiStore.githubToken)">
+                            <option value="">Select Repo</option>
+                            <option :value="item.name" v-for="item in repos" :key="item.name">{{ item.name }}</option>
+                        </select>
+                        <span class="me-1">From</span> <input type="date" class="form-control form-control-sm d-inline"
+                            v-model="since"
+                            @change="fetchRepoCommits(selectedRepo, since, until, uiStore.githubToken)">
+                        <span class="me-1 ms-3">To</span>
+                        <input type="date" v-model="until" class="form-control form-control-sm d-inline"
+                            @change="fetchRepoCommits(selectedRepo, since, until, uiStore.githubToken)">
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12">
+                <table class="table table-light-subtle table-bordered">
+                    <thead>
+                        <tr class="">
+                            <th scope="col">Date</th>
+                            <th scope="col">Commit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="item in commits">
+                            <td>
+                                {{
+                                    new Date(item.commit.committer.date).toLocaleString('en-US', {
+                                        day: '2-digit',
+                                        month: 'short',
+                                        year: 'numeric',
+                                        hour: 'numeric',
+                                        minute: '2-digit',
+                                        hour12: true
+                                    })
+                                        .replace(',', '')
+                                        .replace('at', '')
+                                }}
+                            </td>
+                            <td>
+                                <a :href="item.html_url">
+                                    {{ item.commit.message }}
+                                </a>
+
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

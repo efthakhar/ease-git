@@ -10,6 +10,7 @@ export const useUiStore = defineStore('ui', {
             routeLoading: false,
             theme: 'light',
             githubUsername: '',
+            githubUserAvatar: '',
             githubToken: '',
             toasts: [
                 {
